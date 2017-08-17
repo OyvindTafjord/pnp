@@ -13,7 +13,9 @@ class WikiTablesServlet extends ScalatraServlet {
   val BEAM_SIZE = 10
   val NUM_ANSWERS = 10
   val MODEL_FILE = "/Users/tafjord/data/pnp_wikitables/trained_models/fold5/parser_final.ser"
+  val URL_ROUTE = "/wikitables"
 
+  // scalastyle:off
   val examples = Seq(
     ("Which food from the chart has the lowest percentage of calcium per serving?",
       "Food,Percentage of Calcium Per serving\nMilk,30\nOrange juice,2\nYogurt,30\nCheese,10\nBaked beans,6"),
@@ -26,6 +28,7 @@ class WikiTablesServlet extends ScalatraServlet {
     ("One serving of which food item on the data table provides the most energy?",
       "Food Item (one serving),Number of Calories\nboiled egg,82\nhamburger,347\nice cream,240\nlow-fat milk,121")
   )
+  // scalastyle:on
 
   def loadSerializedParser(modelFilename: String): SemanticParser = {
     val loader = new ModelLoader(modelFilename)
@@ -66,7 +69,7 @@ class WikiTablesServlet extends ScalatraServlet {
     <html><body>Hello!</body></html>
   }
 
-  get("/wikitables/answer") {
+  get(URL_ROUTE) {
     val question = params.getOrElse("question", "")
     val tableCsv = params.getOrElse("tablecsv", "")
     val json = params.get("json") match {
@@ -74,7 +77,7 @@ class WikiTablesServlet extends ScalatraServlet {
       case _ => false
     }
 
-    val questionPatched = "\"" + question+ "\""
+    val questionPatched = "\"" + question + "\""
     val tableCsvPatched = tableCsv.replace("\n", "###").replace("\r", "")
 
     var answers: Option[List[(String, Double, String)]] = None
@@ -87,8 +90,8 @@ class WikiTablesServlet extends ScalatraServlet {
       val entityLinking = new WikiTablesEntityLinker().getEntityLinking(pnpExample)
       val contextValue = pnpExample.getContext()
       val graph = contextValue.graph.asInstanceOf[TableKnowledgeGraph]
-      // Reusing example id  as the table id. The original idea of assigning table ids was to use them
-      // to serialize them as json files. We don't need to do that at test time anyway.
+      // Reusing example id  as the table id. The original idea of assigning table ids was to use
+      // them to serialize them as json files. We don't need to do that at test time anyway.
       val table = Table.knowledgeGraphToTable(exampleId, graph)
       val processedExample = RawExample(pnpExample, entityLinking, table)
       WikiTablesUtil.preprocessExample(processedExample, parser.vocab,
@@ -125,7 +128,7 @@ class WikiTablesServlet extends ScalatraServlet {
         <head><title>WikiTables Demo</title></head>
         <body>
           <h1>WikiTables Semantic Parser Demo</h1>
-          <form action="/wikitables/answer">
+          <form action={URL_ROUTE}>
             <b>Question: </b>
             <input type="text" name="question" size="100" value={question}/>
             <p/>
@@ -140,7 +143,7 @@ class WikiTablesServlet extends ScalatraServlet {
           <h2>Examples</h2>
           {for (example <- examples) yield {
           <p>
-            <a href={url("/wikitables/answer", Map("question" -> example._1, "tablecsv" -> example._2))}>
+            <a href={url(URL_ROUTE, Map("question" -> example._1, "tablecsv" -> example._2))}>
               {example._1}
             </a>
           </p>}}
