@@ -87,12 +87,16 @@ class TestWikiTablesCli extends AbstractCli() {
 
     val denotations = if (modelDenotations.size > 1) {
       val exIds = modelDenotations.head.keySet
-      val denotationMap = MutableMap[String, List[(Value, Double)]]()
+      val denotationMap = MutableMap[String, List[(Value, Double, Expression2)]]()
       for (exId <- exIds) {
+        val lfMap = MutableMap[Value, Expression2]()
         val valueScores = modelDenotations.flatMap(_(exId))
         val accumulator = CountAccumulator.create[Value]
-        valueScores.foreach(x => accumulator.increment(x._1, x._2))
-        val sortedValues = accumulator.getSortedKeys.asScala.map(x => (x, accumulator.getCount(x)))
+        valueScores.foreach(x => {
+          accumulator.increment(x._1, x._2)
+          lfMap.getOrElseUpdate(x._1, x._3)
+        })
+        val sortedValues = accumulator.getSortedKeys.asScala.map(x => (x, accumulator.getCount(x), lfMap(x)))
         denotationMap(exId) = sortedValues.toList
       }
       denotationMap.toMap
@@ -116,7 +120,7 @@ class TestWikiTablesCli extends AbstractCli() {
     }
   }
 
-  def runTestFile(modelFilename: String, options: OptionSet): Map[String, List[(Value, Double)]] = {
+  def runTestFile(modelFilename: String, options: OptionSet): Map[String, List[(Value, Double, Expression2)]] = {
     val simplifier = ExpressionSimplifier.lambdaCalculus()
     val comparator = new SimplificationComparator(simplifier)
 
@@ -143,7 +147,7 @@ class TestWikiTablesCli extends AbstractCli() {
     denotations
   }
 
-  def answerSingleQuestion(modelFilename: String, options: OptionSet): Map[String, List[(Value, Double)]] = {
+  def answerSingleQuestion(modelFilename: String, options: OptionSet): Map[String, List[(Value, Double, Expression2)]] = {
     // TODO: Do not load model for each question. Different Cli?
     val simplifier = ExpressionSimplifier.lambdaCalculus()
     val comparator = new SimplificationComparator(simplifier)
@@ -200,12 +204,12 @@ object TestWikiTablesCli {
   def test(examples: Seq[WikiTablesExample], parser: SemanticParser, beamSize: Int,
       evaluateDpd: Boolean, evaluateOracle: Boolean, typeDeclaration: TypeDeclaration,
       comparator: ExpressionComparator, preprocessor: LfPreprocessor,
-      print: Any => Unit): (SemanticParserLoss, Map[String, List[(Value, Double)]]) = {
+      print: Any => Unit): (SemanticParserLoss, Map[String, List[(Value, Double, Expression2)]]) = {
 
     print("")
     var numCorrect = 0
     var numCorrectAt10 = 0
-    val exampleDenotations = MutableMap[String, List[(Value, Double)]]()
+    val exampleDenotations = MutableMap[String, List[(Value, Double, Expression2)]]()
     for (e <- examples) {
       val sent = e.sentence
       print("example id: " + e.id +  " " + e.tableString)
@@ -245,7 +249,7 @@ object TestWikiTablesCli {
           false
         }
         
-        (isCorrect, value, x.logProb)
+        (isCorrect, value, x.logProb, expression)
       }
       
       var exampleCorrect = false  
@@ -261,7 +265,7 @@ object TestWikiTablesCli {
 
       // Store all defined values sorted in probability order
       exampleDenotations(e.id) = correctAndValue.filter(_._2.isDefined).map(
-          x => (x._2.get, x._3)).toList
+          x => (x._2.get, x._3, x._4)).toList
       
       print("id: " + e.id + " " + exampleCorrect)
 
