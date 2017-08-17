@@ -12,7 +12,20 @@ class WikiTablesServlet extends ScalatraServlet {
 
   val BEAM_SIZE = 10
   val NUM_ANSWERS = 10
-  val MODEL_FILE = "data/pnp_wikitables/trained_models/fold5/parser_final.ser"
+  val MODEL_FILE = "/Users/tafjord/data/pnp_wikitables/trained_models/fold5/parser_final.ser"
+
+  val examples = Seq(
+    ("Which food from the chart has the lowest percentage of calcium per serving?",
+      "Food,Percentage of Calcium Per serving\nMilk,30\nOrange juice,2\nYogurt,30\nCheese,10\nBaked beans,6"),
+    ("What was the sky condition on the day with the most snow?",
+      "Day,Temperature,Sky Condition,Snow\nMonday,31 F,partly cloudy,none\nTuesday,UL 31,cloudy,1 inch\nWednesday,29 F,mostly cloudy,2 inches\nThursday,18 F,cloudy,3 inches\nFriday,32 F,clear Clear,none"),
+    ("Which two objects are both smooth cubes?",
+      "Object,A Mass,B Color,C,D\n1,25 grams,red,smooth,sphere\n2,35 grams,yellow,rough,cylinder\n3,30 grams,green,smooth,cube\n4,25 grams,red,rough,sphere\n5,30 grams,blue,smooth,cube"),
+    ("Identify the mineral in the table that is hard, has a black streak, and has no reaction with acid.",
+      "Mineral,Hardness,Streak,Reaction with Acid\ncalcite,soft,colorless or white,bubbles\nchalcopyrite,hard,gray or black,rotten-egg smell\nfeldspar,hard,colorless or white,no reaction\ngalena,soft,gray or black,rotten-egg smell\ngraphite,soft,gray or black,no reaction\ngypsum,soft,colorless or white,no reaction\nhornblende,hard,gray or black,no reaction"),
+    ("One serving of which food item on the data table provides the most energy?",
+      "Food Item (one serving),Number of Calories\nboiled egg,82\nhamburger,347\nice cream,240\nlow-fat milk,121")
+  )
 
   def loadSerializedParser(modelFilename: String): SemanticParser = {
     val loader = new ModelLoader(modelFilename)
@@ -26,7 +39,7 @@ class WikiTablesServlet extends ScalatraServlet {
 
   private val simplifier = ExpressionSimplifier.lambdaCalculus()
   private val comparator = new SimplificationComparator(simplifier)
-  private val parser = loadSerializedParser("MODEL_FILE")
+  private val parser = loadSerializedParser(MODEL_FILE)
   private val featureGenerator = parser.config.featureGenerator.get
   private val typeDeclaration = parser.config.typeDeclaration
   private val lfPreprocessor = parser.config.preprocessor
@@ -47,6 +60,10 @@ class WikiTablesServlet extends ScalatraServlet {
       </tr>
     }}
     </table>
+  }
+
+  get("/") {
+    <html><body>Hello!</body></html>
   }
 
   get("/wikitables/answer") {
@@ -119,6 +136,14 @@ class WikiTablesServlet extends ScalatraServlet {
             <input type="submit" value="Submit"/>
           </form>
           {renderAnswer}
+          <hr/>
+          <h2>Examples</h2>
+          {for (example <- examples) yield {
+          <p>
+            <a href={url("/wikitables/answer", Map("question" -> example._1, "tablecsv" -> example._2))}>
+              {example._1}
+            </a>
+          </p>}}
         </body>
       </html>
     }
