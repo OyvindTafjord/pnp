@@ -17,9 +17,12 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-annotations" % "2.2.3",
   "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0",
   "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier "models",
+  "javax.servlet" % "javax.servlet-api" % "3.1.0",
   "net.sf.jopt-simple" % "jopt-simple" % "4.9",
   "org.apache.commons" % "commons-lang3" % "3.5",
+  "org.eclipse.jetty" % "jetty-webapp" % "9.4.1.v20170120",
   "org.scalatest" %% "scalatest" % "3.0.0" % "test",
+  "org.scalatra" %% "scalatra" % "2.5.0",
   "org.json4s" %% "json4s-native" % "3.2.11",
   "io.spray" %%  "spray-json" % "1.3.3"
 )
