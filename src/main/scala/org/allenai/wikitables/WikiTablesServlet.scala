@@ -6,9 +6,11 @@ import org.allenai.pnp.semparse.SemanticParser
 import com.jayantkrish.jklol.ccg.lambda2.{ExpressionSimplifier, SimplificationComparator}
 import edu.cmu.dynet.{Initialize, ModelLoader}
 import edu.stanford.nlp.sempre.tables.TableKnowledgeGraph
+import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
+import org.scalatra.json._
 
-class WikiTablesServlet extends ScalatraServlet {
+class WikiTablesServlet extends ScalatraServlet with JacksonJsonSupport {
 
   val BEAM_SIZE = 10
   val NUM_ANSWERS = 10
@@ -29,6 +31,12 @@ class WikiTablesServlet extends ScalatraServlet {
       "Food Item (one serving),Number of Calories\nboiled egg,82\nhamburger,347\nice cream,240\nlow-fat milk,121")
   )
   // scalastyle:on
+
+
+  protected implicit val jsonFormats: Formats = DefaultFormats
+
+  case class Result(question: String, topAnswer: Answer, allAnswers: Seq[Answer])
+  case class Answer(text: String, score: Double, logicalForm: String)
 
   def loadSerializedParser(modelFilename: String): SemanticParser = {
     val loader = new ModelLoader(modelFilename)
@@ -80,7 +88,7 @@ class WikiTablesServlet extends ScalatraServlet {
     val questionPatched = "\"" + question + "\""
     val tableCsvPatched = tableCsv.replace("\n", "###").replace("\r", "")
 
-    var answers: Option[List[(String, Double, String)]] = None
+    var answersOption: Option[List[Answer]] = None
     if (question != "" && tableCsv != "") {
       // Are there better alternatives than assigning the current timestamp as the exampleId?
       val exampleId: String = (System.currentTimeMillis / 1000).toString
@@ -99,25 +107,31 @@ class WikiTablesServlet extends ScalatraServlet {
       val (testResult, denotations) = TestWikiTablesCli.test(Seq(processedExample.ex), parser,
         BEAM_SIZE, false, false, typeDeclaration, comparator,
         lfPreprocessor, _ => ())
-      answers = Some(denotations.values.head.map {case (value, score, lf) =>
-        (TestWikiTablesCli.valueToStrings(value).mkString(", "), Math.exp(score), lf.toString)}
+      answersOption = Some(denotations.values.head.map {case (value, score, lf) =>
+        Answer(TestWikiTablesCli.valueToStrings(value).mkString(", "), Math.exp(score), lf.toString)}
         .take(NUM_ANSWERS))
     }
 
+
     if (json) {
-      "Not implemented"
+      contentType = formats("json")
+      if (answersOption.isDefined) {
+        val answers = answersOption.get
+        val topAnswer = answers.find(_.text.nonEmpty).getOrElse(answers.head)
+        Result(question = question, topAnswer = topAnswer, allAnswers = answers)
+      }
     } else {
       var renderAnswer = <p></p>
-      if (answers.isDefined) {
-        val topAnswer = answers.get.find(_._1.nonEmpty).map(_._1).getOrElse("")
-        val topScore = answers.get.find(_._1.nonEmpty).map(_._2).getOrElse(0d)
-        val answerGrid = answers.get.map(_.productIterator.toList)
+      if (answersOption.isDefined) {
+        val answers = answersOption.get
+        val topAnswer = answers.find(_.text.nonEmpty).getOrElse(answers.head)
+        val answerGrid = answers.map(_.productIterator.toList)
         val tableGrid = tableCsvPatched.split("###").toVector.map(_.split(",").toVector)
         renderAnswer =
           <p>
           <hr/>
-          <b>Top answer: </b>{topAnswer}<br/>
-          <b>Top confidence: </b>{topScore}
+          <b>Top answer: </b>{topAnswer.text}<br/>
+          <b>Top confidence: </b>{topAnswer.score}
           <p/>
           {makeHtmlTable(answerGrid, Some(Seq("Answer", "Confidence", "Logical Form")))}
           <p/>
